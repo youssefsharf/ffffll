@@ -1,13 +1,9 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/widgets/widgets.dart';
 import '../../../../data/models/daily_entity.dart';
@@ -62,7 +58,7 @@ class _DebtsPageState extends State<DebtsPage> {
   Future<void> _saveDebtsEntries() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> entries =
-        debtsEntries.map((e) => jsonEncode(e.toJson())).toList();
+    debtsEntries.map((e) => jsonEncode(e.toJson())).toList();
     await prefs.setStringList('debtsEntries', entries);
   }
 
@@ -70,19 +66,34 @@ class _DebtsPageState extends State<DebtsPage> {
     setState(() {
       filteredEntries = name == null || name.isEmpty
           ? debtsEntries
-          : debtsEntries.where((e) => e.name == name).toList();
+          : debtsEntries.where((entry) => entry.name == name).toList();
+      if (filteredEntries.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا توجد بيانات مطابقة للاسم المحدد'),
+          ),
+        );
+      }
       filteredEntries.sort((a, b) => b.date.compareTo(a.date));
     });
   }
 
   void _filterEntriesByDateRange(List<DateTime?> range) {
     setState(() {
-      filteredEntries = (range[0] != null && range[1] != null)
+      filteredEntries = range[0] != null && range[1] != null
           ? debtsEntries
-              .where((e) =>
-                  e.date.isAfter(range[0]!) && e.date.isBefore(range[1]!))
-              .toList()
+          .where((entry) =>
+      entry.date.isAfter(range[0]!) &&
+          entry.date.isBefore(range[1]!))
+          .toList()
           : debtsEntries;
+      if (filteredEntries.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا توجد بيانات مطابقة لنطاق التاريخ المحدد'),
+          ),
+        );
+      }
       filteredEntries.sort((a, b) => b.date.compareTo(a.date));
     });
   }
@@ -130,35 +141,20 @@ class _DebtsPageState extends State<DebtsPage> {
     }
   }
 
-  Future<void> _createAndSharePdf(String name, double goldForUs,
-      double goldForHim, DateTime date, String notes) async {
-    final pdf = pw.Document();
+  Future<void> _createAndShareText(
+      String name, double goldForUs, double goldForHim, DateTime date, String notes) async {
+    // إنشاء نص الفاتورة
+    String invoiceText = '''
+الفاتورة:
+الاسم: $name
+التاريخ: ${DateFormat('yyyy-MM-dd').format(date)}
+ذهب لنا: $goldForUs
+ذهب له: $goldForHim
+البيان: $notes
+''';
 
-    pdf.addPage(pw.Page(build: (pw.Context context) {
-      return pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text('الفاتورة:',
-              style:
-                  pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 10),
-          pw.Text('الاسم: $name', style: pw.TextStyle(fontSize: 16)),
-          pw.Text('التاريخ: ${DateFormat('yyyy-MM-dd').format(date)}',
-              style: pw.TextStyle(fontSize: 16)),
-          pw.Text('ذهب لنا: $goldForUs', style: pw.TextStyle(fontSize: 16)),
-          pw.Text('ذهب له: $goldForHim', style: pw.TextStyle(fontSize: 16)),
-          pw.Text('البيان: $notes',
-              style: pw.TextStyle(fontSize: 16)), // إضافة البيان
-        ],
-      );
-    }));
-
-    final Uint8List bytes = await pdf.save();
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File(
-        '${directory.path}/invoice_${DateFormat('yyyyMMdd').format(date)}.pdf');
-    await file.writeAsBytes(bytes);
-    Share.shareXFiles([XFile(file.path)], text: 'إرسال الفاتورة');
+    // إرسال النص كمشاركة
+    Share.share(invoiceText, subject: 'إرسال الفاتورة');
   }
 
   Map<String, double> get totalGoldForUsByName {
@@ -181,6 +177,9 @@ class _DebtsPageState extends State<DebtsPage> {
 
   @override
   Widget build(BuildContext context) {
+    double totalGoldForUs = totalGoldForUsByName.values.fold(0, (a, b) => a + b);
+    double totalGoldForHim = totalGoldForHimByName.values.fold(0, (a, b) => a + b);
+
     return Scaffold(
       appBar: AppBar(
         title: Container(
@@ -224,7 +223,7 @@ class _DebtsPageState extends State<DebtsPage> {
                     child: ElevatedButton(
                       onPressed: _pickDateRange,
                       child: Text(selectedDateRange[0] == null ||
-                              selectedDateRange[1] == null
+                          selectedDateRange[1] == null
                           ? "اختر نطاق التاريخ"
                           : "${DateFormat('yyyy-MM-dd').format(selectedDateRange[0]!)} - ${DateFormat('yyyy-MM-dd').format(selectedDateRange[1]!)}"),
                     ),
@@ -253,13 +252,12 @@ class _DebtsPageState extends State<DebtsPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       headingRowColor:
-                          MaterialStateProperty.all(widget.tableColor),
+                      MaterialStateProperty.all(widget.tableColor),
                       columns: [
                         DataColumn(
                             label: buildCenteredText('الاسم', width: 100)),
                         DataColumn(
-                            label: buildCenteredText('التاريخ',
-                                width: 100)), // إضافة عمود التاريخ
+                            label: buildCenteredText('التاريخ', width: 100)),
                         DataColumn(
                             label: buildCenteredText('البيان', width: 100)),
                         DataColumn(
@@ -270,7 +268,29 @@ class _DebtsPageState extends State<DebtsPage> {
                             label: buildCenteredText('إرسال الفاتورة',
                                 width: 100)),
                       ],
-                      rows: _buildDataRows(), // بناء الصفوف
+                      rows: _buildDataRows(),
+                    ),
+                  ),
+                ),
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                            "مجموع ذهب لنا: ${totalGoldForUs.toStringAsFixed(2)}",
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 20),
+                        Text(
+                            "مجموع ذهب له: ${totalGoldForHim.toStringAsFixed(2)}",
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
                     ),
                   ),
                 ),
@@ -285,7 +305,24 @@ class _DebtsPageState extends State<DebtsPage> {
   List<DataRow> _buildDataRows() {
     List<DataRow> rows = [];
 
+    if (filteredEntries.isEmpty) {
+      return [
+        DataRow(
+          cells: [
+            DataCell(buildCenteredText('لا توجد بيانات مطابقة')),
+            DataCell(buildCenteredText('')),
+            DataCell(buildCenteredText('')),
+            DataCell(buildCenteredText('')),
+            DataCell(buildCenteredText('')),
+            DataCell(buildCenteredText('')),
+          ],
+        ),
+      ];
+    }
+
     for (var name in availableNames) {
+      if (!filteredEntries.any((e) => e.name == name)) continue;
+
       double totalForUs = totalGoldForUsByName[name] ?? 0;
       double totalForHim = totalGoldForHimByName[name] ?? 0;
 
@@ -304,18 +341,37 @@ class _DebtsPageState extends State<DebtsPage> {
                     }
                   });
                 },
-                child: buildCenteredText(name),
+                child: Row(
+                  children: [
+                    Icon(
+                      expandedNames.contains(name)
+                          ? Icons.expand_less
+                          : Icons.expand_more,
+                      color: Colors.blue.shade800,
+                    ),
+                    const SizedBox(width: 8),
+                    buildCenteredText(name),
+                  ],
+                ),
               ),
             ),
-            DataCell(buildCenteredText(DateFormat('yyyy-MM-dd').format(
-                filteredEntries.firstWhere((e) => e.name == name).date))),
-            DataCell(buildCenteredText(
-                filteredEntries.firstWhere((e) => e.name == name).notes)),
+            DataCell(
+              buildCenteredText(
+                DateFormat('yyyy-MM-dd').format(
+                  filteredEntries.firstWhere((e) => e.name == name).date,
+                ),
+              ),
+            ),
+            DataCell(
+              buildCenteredText(
+                filteredEntries.firstWhere((e) => e.name == name).notes,
+              ),
+            ),
             DataCell(buildCenteredText(totalForUs.toStringAsFixed(2))),
             DataCell(buildCenteredText(totalForHim.toStringAsFixed(2))),
             DataCell(
               ElevatedButton(
-                onPressed: () => _createAndSharePdf(
+                onPressed: () => _createAndShareText(
                     name, totalForUs, totalForHim, DateTime.now(), ''),
                 child: const Text('إرسال الفاتورة'),
               ),
@@ -330,7 +386,7 @@ class _DebtsPageState extends State<DebtsPage> {
           rows.add(
             DataRow(
               color: MaterialStateProperty.resolveWith<Color>(
-                (Set<MaterialState> states) {
+                    (Set<MaterialState> states) {
                   return Colors.grey[100]!; // لون خلفية الصف التفصيلي
                 },
               ),
@@ -338,8 +394,7 @@ class _DebtsPageState extends State<DebtsPage> {
                 DataCell(
                   Row(
                     children: [
-                      Icon(Icons.arrow_right,
-                          color: Color(0xFF63CCCA)), // أيقونة
+                      Icon(Icons.arrow_right, color: Color(0xFF63CCCA)),
                       SizedBox(width: 8),
                       Center(
                         child: Text(entry.name,
@@ -366,7 +421,7 @@ class _DebtsPageState extends State<DebtsPage> {
                 )),
                 DataCell(
                   ElevatedButton(
-                    onPressed: () => _createAndSharePdf(name, entry.goldForUs,
+                    onPressed: () => _createAndShareText(name, entry.goldForUs,
                         entry.goldForHim, entry.date, entry.notes),
                     child: const Text('إرسال الفاتورة'),
                   ),

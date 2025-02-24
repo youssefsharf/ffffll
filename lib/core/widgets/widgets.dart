@@ -17,11 +17,14 @@ Widget buildTextField(TextEditingController controller, String hint, {bool isNum
   );
 }
 
-/// Builds a centered text widget with a given width.
-Widget buildCenteredText(String text, {double width = 100}) {
-  return SizedBox(
-    width: width,
-    child: Center(child: Text(text)),
+Widget buildCenteredText(String text, {double? width}) {
+  return Container(
+    width: width, // عرض اختياري
+    alignment: Alignment.center, // توسيط النص
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: 16),
+    ),
   );
 }
 

@@ -1,13 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../../data/models/daily_entity.dart';
 
@@ -70,7 +66,7 @@ class _WorkshopPageState extends State<WorkshopPage> {
   Future<void> _saveworkshopEntries() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> entries =
-        workshopEntries.map((entry) => jsonEncode(entry.toJson())).toList();
+    workshopEntries.map((entry) => jsonEncode(entry.toJson())).toList();
     await prefs.setStringList('workshopEntries', entries);
   }
 
@@ -92,10 +88,10 @@ class _WorkshopPageState extends State<WorkshopPage> {
     setState(() {
       filteredEntries = range[0] != null && range[1] != null
           ? workshopEntries
-              .where((entry) =>
-                  entry.date.isAfter(range[0]!) &&
-                  entry.date.isBefore(range[1]!))
-              .toList()
+          .where((entry) =>
+      entry.date.isAfter(range[0]!) &&
+          entry.date.isBefore(range[1]!))
+          .toList()
           : workshopEntries;
       filteredEntries.sort((a, b) => b.date.compareTo(a.date));
     });
@@ -142,50 +138,27 @@ class _WorkshopPageState extends State<WorkshopPage> {
     }
   }
 
-  Future<void> _createAndSharePdf(DailyEntry entry) async {
-    final pdf = pw.Document();
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('الفاتورة:',
-                  style: pw.TextStyle(
-                      fontSize: 20, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 10),
-              pw.Text('الاسم: ${entry.name}',
-                  style: pw.TextStyle(fontSize: 16)),
-              pw.Text('التاريخ: ${DateFormat('yyyy-MM-dd').format(entry.date)}',
-                  style: pw.TextStyle(fontSize: 16)),
-              pw.Text('البيان: ${entry.notes}',
-                  style: pw.TextStyle(fontSize: 16)),
-              pw.Text('ذهب لنا: ${entry.goldForUs}',
-                  style: pw.TextStyle(fontSize: 16)),
-              pw.Text('ذهب له: ${entry.goldForHim}',
-                  style: pw.TextStyle(fontSize: 16)),
-              // تمت إزالة الزبون من الفاتورة
-            ],
-          );
-        },
-      ),
-    );
+  Future<void> _createAndShareText(DailyEntry entry) async {
+    final text = '''
+الفاتورة:
+الاسم: ${entry.name}
+التاريخ: ${DateFormat('yyyy-MM-dd').format(entry.date)}
+البيان: ${entry.notes}
+ذهب لنا: ${entry.goldForUs}
+ذهب له: ${entry.goldForHim}
+''';
 
-    final Uint8List bytes = await pdf.save();
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/invoice.pdf');
-    await file.writeAsBytes(bytes);
-    Share.shareXFiles([XFile(file.path)], text: 'إرسال الفاتورة');
+    Share.share(text); // مشاركة النص كرسالة
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(
         title: Container(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // bool isWide = constraints.maxWidth > 600;
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
@@ -201,7 +174,10 @@ class _WorkshopPageState extends State<WorkshopPage> {
         ),
         backgroundColor: widget.tableColor,
       ),
-      body: Directionality(
+      body:
+
+      Directionality(
+
         textDirection: TextDirection.rtl,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -225,7 +201,7 @@ class _WorkshopPageState extends State<WorkshopPage> {
                       onPressed: _pickDateRange,
                       child: Text(
                         selectedDateRange[0] == null ||
-                                selectedDateRange[1] == null
+                            selectedDateRange[1] == null
                             ? "اختر نطاق التاريخ"
                             : "${DateFormat('yyyy-MM-dd').format(selectedDateRange[0]!)} - ${DateFormat('yyyy-MM-dd').format(selectedDateRange[1]!)}",
                       ),
@@ -253,13 +229,12 @@ class _WorkshopPageState extends State<WorkshopPage> {
                           width: 1,
                           borderRadius: BorderRadius.circular(8)),
                       headingRowColor:
-                          MaterialStateProperty.all(widget.tableColor),
+                      MaterialStateProperty.all(widget.tableColor),
                       columns: [
                         DataColumn(
                             label: buildCenteredText('الاسم', width: 100)),
                         DataColumn(
-                            label: buildCenteredText('التاريخ',
-                                width: 100)), // إضافة عمود التاريخ
+                            label: buildCenteredText('التاريخ', width: 100)),
                         DataColumn(
                             label: buildCenteredText('البيان', width: 100)),
                         DataColumn(
@@ -267,27 +242,34 @@ class _WorkshopPageState extends State<WorkshopPage> {
                         DataColumn(
                             label: buildCenteredText('ذهب له', width: 80)),
                         DataColumn(
-                            label: buildCenteredText('إرسال الفاتورة',
-                                width: 100)),
+                            label: buildCenteredText('إرسال الفاتورة', width: 100)),
                       ],
                       rows: filteredEntries.map((entry) {
-                        return DataRow(cells: [
-                          DataCell(buildCenteredText(entry.name)),
-                          DataCell(buildCenteredText(
-                              DateFormat('yyyy-MM-dd').format(entry.date))),
-                          DataCell(buildCenteredText(entry.notes)),
-                          DataCell(
-                              buildCenteredText(entry.goldForUs.toString())),
-                          DataCell(
-                              buildCenteredText(entry.goldForHim.toString())),
-                          // تمت إزالة الزبون من الصف
-                          DataCell(
-                            ElevatedButton(
-                              onPressed: () => _createAndSharePdf(entry),
-                              child: const Text('إرسال الفاتورة'),
-                            ),
+                        return DataRow(
+                          color: MaterialStateProperty.resolveWith<Color>(
+                                (Set<MaterialState> states) {
+                              return states.contains(MaterialState.selected)
+                                  ? Theme.of(context).colorScheme.primary.withOpacity(0.08)
+                                  : Colors.white;
+                            },
                           ),
-                        ]);
+                          cells: [
+                            DataCell(buildCenteredText(entry.name)),
+                            DataCell(buildCenteredText(
+                                DateFormat('yyyy-MM-dd').format(entry.date))),
+                            DataCell(buildCenteredText(entry.notes)),
+                            DataCell(
+                                buildCenteredText(entry.goldForUs.toString())),
+                            DataCell(
+                                buildCenteredText(entry.goldForHim.toString())),
+                            DataCell(
+                              ElevatedButton(
+                                onPressed: () => _createAndShareText(entry),
+                                child: const Text('إرسال الفاتورة'),
+                              ),
+                            ),
+                          ],
+                        );
                       }).toList(),
                     ),
                   ),
