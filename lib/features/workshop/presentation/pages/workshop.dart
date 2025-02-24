@@ -45,22 +45,13 @@ class _WorkshopPageState extends State<WorkshopPage> {
           .map((entry) => DailyEntry.fromJson(jsonDecode(entry)))
           .toList();
       setState(() {
-        workshopEntries = oldEntries + widget.initialEntries;
-        workshopEntries.sort((a, b) => b.date.compareTo(a.date));
-        filteredEntries = workshopEntries;
-        availableNames =
-            workshopEntries.map((entry) => entry.name).toSet().toList();
-      });
-    } else {
-      setState(() {
-        workshopEntries = widget.initialEntries;
+        workshopEntries = oldEntries;
         workshopEntries.sort((a, b) => b.date.compareTo(a.date));
         filteredEntries = workshopEntries;
         availableNames =
             workshopEntries.map((entry) => entry.name).toSet().toList();
       });
     }
-    _saveworkshopEntries();
   }
 
   Future<void> _saveworkshopEntries() async {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -172,42 +174,24 @@ class _DailyPageState extends State<DailyPage> {
     dailyEntries.where((entry) => entry.name != 'ورشة').toList();
 
     if (workshopEntries.isNotEmpty) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => WorkshopPage(
-            title: 'الورشة',
-            tableColor: widget.tableColor,
-            initialEntries: workshopEntries,
-          ),
-        ),
-      );
+      // حفظ البيانات في SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      List<String> entries = workshopEntries.map((entry) => jsonEncode(entry.toJson())).toList();
+      await prefs.setStringList('workshopEntries', entries);
     }
 
     if (otherEntries.isNotEmpty) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DebtsPage(
-            title: 'الذمم',
-            tableColor: widget.tableColor,
-            initialEntries: otherEntries,
-          ),
-        ),
-      );
+      // حفظ البيانات في SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      List<String> entries = otherEntries.map((entry) => jsonEncode(entry.toJson())).toList();
+      await prefs.setStringList('debtsEntries', entries);
     }
 
     if (dailyEntries.isNotEmpty) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OfficePage(
-            title: 'الخزينة',
-            tableColor: widget.tableColor,
-            initialEntries: dailyEntries,
-          ),
-        ),
-      );
+      // حفظ البيانات في SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      List<String> entries = dailyEntries.map((entry) => jsonEncode(entry.toJson())).toList();
+      await prefs.setStringList('officeEntries', entries);
     }
 
     // مسح الإدخالات بعد التصدير
@@ -615,4 +599,3 @@ class _DailyPageState extends State<DailyPage> {
     );
   }
 }
-

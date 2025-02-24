@@ -157,6 +157,11 @@ class _DebtsPageState extends State<DebtsPage> {
     Share.share(invoiceText, subject: 'إرسال الفاتورة');
   }
 
+  Future<void> _exportDataAndClose() async {
+    await _saveDebtsEntries(); // حفظ البيانات
+    Navigator.pop(context); // إغلاق الصفحة بعد التصدير
+  }
+
   Map<String, double> get totalGoldForUsByName {
     Map<String, double> totals = {};
     for (var entry in filteredEntries) {
